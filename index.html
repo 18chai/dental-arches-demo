@@ -1,0 +1,576 @@
+<!doctype html>
+<!-- Internal handoff artifact. Not part of the application runtime or public asset tree. -->
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Zubní kříž – ortodoncie</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121316;
+      --surface: #1b1c20;
+      --surface-raised: #222329;
+      --line: #34353d;
+      --muted: #9b9da8;
+      --text: #f4f4f5;
+      --violet: #7367f0;
+      --violet-soft: rgba(115, 103, 240, .18);
+      --tooth: #f2eee5;
+      --tooth-edge: #a6a097;
+      --gingiva: #4f2934;
+      --rose: #fb4775;
+      --teal: #20c9b4;
+      --amber: #ffb72b;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; min-width: 0; min-height: 100%; overflow-x: hidden; }
+
+    body {
+      background:
+        radial-gradient(circle at 50% -20%, rgba(115, 103, 240, .12), transparent 38rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button { font: inherit; }
+
+    .app-shell {
+      width: min(100%, 1440px);
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding: clamp(16px, 2.5vw, 32px);
+    }
+
+    .page-head { margin-bottom: clamp(14px, 2vw, 28px); }
+    .eyebrow { margin: 0 0 7px; color: #8b83ff; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(22px, 3vw, 34px); line-height: 1.12; }
+    .lede { max-width: 720px; margin: 9px 0 0; color: var(--muted); font-size: clamp(13px, 1.6vw, 16px); line-height: 1.5; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      width: min(100%, 1100px);
+      margin: 0 auto;
+      align-items: stretch;
+    }
+
+    .chart-card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(27, 28, 32, .92);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .25);
+    }
+
+    .chart-card { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+
+    .arch-wrap {
+      position: relative;
+      display: grid;
+      flex: 1;
+      min-height: 0;
+      place-items: center;
+      padding: clamp(6px, 1.3vw, 16px);
+    }
+
+    .arch-chart {
+      display: block;
+      width: 100%;
+      max-width: 920px;
+      height: auto;
+      max-height: calc(100dvh - 190px);
+      overflow: visible;
+    }
+
+    .status-toast {
+      position: absolute;
+      z-index: 5;
+      right: 14px;
+      bottom: 12px;
+      max-width: calc(100% - 28px);
+      border: 1px solid rgba(115, 103, 240, .38);
+      border-radius: 10px;
+      padding: 7px 10px;
+      background: rgba(31, 29, 54, .92);
+      color: #cdc9ff;
+      font-size: 11px;
+      opacity: 0;
+      transform: translateY(5px);
+      transition: opacity .16s ease, transform .16s ease;
+      pointer-events: none;
+    }
+    .status-toast:not(:empty) { opacity: 1; transform: translateY(0); }
+
+    .jaw-bed { fill: rgba(103, 47, 65, .28); stroke: rgba(196, 110, 137, .28); stroke-width: 2; }
+    .jaw-guide { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 2; stroke-dasharray: 6 9; }
+    .jaw-label { fill: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    .midline { stroke: rgba(255,255,255,.11); stroke-width: 1; stroke-dasharray: 4 5; }
+
+    .tooth { cursor: pointer; outline: none; }
+    .tooth-hit { fill: transparent; pointer-events: all; }
+    .tooth-shape {
+      fill: var(--tooth);
+      stroke: var(--tooth-edge);
+      stroke-width: 1.6;
+      vector-effect: non-scaling-stroke;
+      filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .22));
+      transition: fill .16s ease;
+    }
+    .tooth-detail { fill: none; stroke: rgba(77, 72, 67, .28); stroke-width: 1.1; vector-effect: non-scaling-stroke; pointer-events: none; }
+    .tooth:hover .tooth-shape { fill: #fffdfa; stroke: #cac4ba; }
+    .tooth:focus-visible .tooth-shape { stroke: #8c83ff; stroke-width: 3.5; }
+    .tooth-shape.has-option-two,
+    .tooth:hover .tooth-shape.has-option-two {
+      stroke: var(--rose);
+      stroke-width: 5;
+      filter: drop-shadow(0 0 5px rgba(251, 71, 117, .5));
+    }
+    .option-three-dot {
+      fill: var(--rose);
+      stroke: white;
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+      pointer-events: none;
+      filter: drop-shadow(0 0 3px rgba(251, 71, 117, .6));
+    }
+    .option-one-line {
+      fill: none;
+      stroke: var(--rose);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+      filter: drop-shadow(0 0 5px rgba(251, 71, 117, .5));
+    }
+
+    .screen-number-layer { position: absolute; inset: 0; pointer-events: none; }
+    .screen-number-layer { z-index: 3; }
+    .screen-number-connector {
+      position: absolute;
+      height: 1.5px;
+      transform-origin: 0 50%;
+      border-radius: 999px;
+      background: rgba(198, 196, 210, .64);
+      opacity: .95;
+    }
+    .screen-tooth-number {
+      position: absolute;
+      display: grid;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 4px;
+      place-items: center;
+      transform: translate(-50%, -50%);
+      border: 1px solid rgba(255, 255, 255, .20);
+      border-radius: 7px;
+      background: rgba(17, 18, 23, .90);
+      box-shadow: 0 2px 7px rgba(0, 0, 0, .42);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .screen-tooth-number[hidden] { display: none; }
+
+    @media (min-width: 761px) {
+      .app-shell { display: flex; height: 100dvh; flex-direction: column; }
+      .workspace { flex: 1; min-height: 560px; }
+      .arch-chart { position: absolute; inset: 16px; width: calc(100% - 32px); height: calc(100% - 32px); max-width: none; max-height: none; }
+      .screen-tooth-number { min-width: 20px; padding-inline: 0; }
+    }
+
+    @media (max-width: 760px) {
+      .app-shell { display: flex; min-height: 100dvh; flex-direction: column; padding: 12px; }
+      .page-head { margin-bottom: 10px; }
+      .eyebrow { margin-bottom: 4px; font-size: 9px; }
+      h1 { font-size: 20px; }
+      .lede { margin-top: 5px; font-size: 11px; line-height: 1.35; }
+      .workspace { flex: 1; grid-template-columns: 1fr; }
+      .chart-card { border-radius: 15px; }
+      .arch-wrap { padding: 0 2px; }
+      .arch-chart { max-height: min(54dvh, 480px); }
+      .jaw-label { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="page-head">
+      <p class="eyebrow">Interaktivní prototyp</p>
+      <h1>Zubní kříž – ortodoncie</h1>
+      <p class="lede">Kliknutím nebo klepnutím na zub postupně přidáte čáru, obrys a bod. Čtvrté kliknutí výběr zruší.</p>
+    </header>
+
+    <section class="workspace" aria-label="Prototyp plánu umístění">
+      <article class="chart-card">
+        <div class="arch-wrap" data-arch-chart>
+          <svg class="arch-chart" viewBox="0 0 720 800" role="group" aria-label="Zubní oblouky">
+            <path id="upper-bed" class="jaw-bed" d="M50 350 C50 8 670 8 670 350 C615 265 105 265 50 350Z" />
+            <path id="upper-guide" class="jaw-guide" d="M58 338 C58 18 662 18 662 338" />
+            <path id="lower-bed" class="jaw-bed" d="M50 450 C50 792 670 792 670 450 C615 535 105 535 50 450Z" />
+            <path id="lower-guide" class="jaw-guide" d="M58 462 C58 782 662 782 662 462" />
+            <line id="arch-midline" class="midline" x1="360" y1="26" x2="360" y2="774" />
+            <text id="upper-label" class="jaw-label" x="26" y="34">Horní čelist</text>
+            <text id="lower-label" class="jaw-label" x="26" y="782">Dolní čelist</text>
+            <g id="option-one-lines" aria-hidden="true"></g>
+            <g id="upper-teeth" aria-label="Horní čelist"></g>
+            <g id="lower-teeth" aria-label="Dolní čelist"></g>
+          </svg>
+          <div class="screen-number-layer" aria-hidden="true"></div>
+        </div>
+        <div class="status-toast" role="status" aria-live="polite"></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
+    const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+    const toothValues = new Map()
+
+    const silhouettes = {
+      molar: 'M-16-29C-26-27-24-14-31-6C-36 2-34 18-24 25C-15 31-8 28 0 25C8 28 15 31 24 25C34 18 36 2 31-6C24-14 26-27 16-29C8-35-8-35-16-29Z',
+      premolar: 'M-14-30C-23-26-21-13-27-5C-32 4-30 19-21 26C-13 31 13 31 21 26C30 19 32 4 27-5C21-13 23-26 14-30C7-35-7-35-14-30Z',
+      canine: 'M-12-31C-21-26-19-13-24-4C-29 6-27 20-18 27C-10 32 10 32 18 27C27 20 29 6 24-4C19-13 21-26 12-31C6-36-6-36-12-31Z',
+      incisor: 'M-11-30C-19-25-18-12-22-3C-26 6-27 18-25 23C-22 29-14 32 0 27C14 32 22 29 25 23C27 18 26 6 22-3C18-12 19-25 11-30C5-35-5-35-11-30Z',
+    }
+
+    function toothType(index) {
+      const distanceFromCenter = Math.abs(index - 7.5)
+      if (distanceFromCenter >= 5.5) return 'molar'
+      if (distanceFromCenter >= 3.5) return 'premolar'
+      if (distanceFromCenter >= 2.5) return 'canine'
+      return 'incisor'
+    }
+
+    function chartLayout() {
+      const mobile = window.matchMedia('(max-width: 760px)').matches
+      return {
+        mobile,
+        height: mobile ? 912 : 800,
+        centerY: mobile ? 456 : 400,
+        curveBase: mobile ? 54 : 49,
+        curveDepth: mobile ? 385 : 338,
+      }
+    }
+
+    function configureChart() {
+      const { mobile, height } = chartLayout()
+      const chart = document.querySelector('.arch-chart')
+      chart.setAttribute('viewBox', `0 0 720 ${height}`)
+      document.getElementById('upper-bed').setAttribute('d', mobile
+        ? 'M50 410 C50 8 670 8 670 410 C615 325 105 325 50 410Z'
+        : 'M50 350 C50 8 670 8 670 350 C615 265 105 265 50 350Z')
+      document.getElementById('upper-guide').setAttribute('d', mobile
+        ? 'M58 398 C58 18 662 18 662 398'
+        : 'M58 338 C58 18 662 18 662 338')
+      document.getElementById('lower-bed').setAttribute('d', mobile
+        ? 'M50 502 C50 904 670 904 670 502 C615 587 105 587 50 502Z'
+        : 'M50 450 C50 792 670 792 670 450 C615 535 105 535 50 450Z')
+      document.getElementById('lower-guide').setAttribute('d', mobile
+        ? 'M58 514 C58 894 662 894 662 514'
+        : 'M58 462 C58 782 662 782 662 462')
+      document.getElementById('arch-midline').setAttribute('y2', mobile ? '886' : '774')
+      document.getElementById('lower-label').setAttribute('y', mobile ? '894' : '782')
+    }
+
+    function renderJaw(containerId, teeth, lower) {
+      const container = document.getElementById(containerId)
+      const { mobile, height, curveBase, curveDepth } = chartLayout()
+      teeth.forEach((number, index) => {
+        const t = (index - 7.5) / 7.5
+        const theta = t * 1.46
+        const horizontalRadius = mobile
+          ? 306 - 40 * Math.abs(t) ** 3
+          : 342 - 26 * Math.abs(t) ** 5
+        const x = 360 + horizontalRadius * Math.sin(theta)
+        const curve = curveBase + curveDepth * (1 - Math.cos(theta))
+        const y = lower ? height - curve : curve
+        const angle = Math.atan2(
+          (lower ? -1 : 1) * curveDepth * Math.sin(theta),
+          horizontalRadius * Math.cos(theta),
+        ) * 180 / Math.PI
+        const taper = mobile ? .20 : .26
+        const visualBoost = mobile ? 1.15 : 1.12
+        const scale = (1 - Math.abs(t) * taper) * visualBoost
+        const direction = lower ? ' rotate(180)' : ''
+        const type = toothType(index)
+
+        const tooth = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+        tooth.setAttribute('class', 'tooth')
+        tooth.setAttribute('role', 'button')
+        tooth.setAttribute('tabindex', '0')
+        tooth.setAttribute('aria-label', `Zub ${number}, bez výběru`)
+        tooth.setAttribute('aria-pressed', 'false')
+        tooth.setAttribute('data-tooth', String(number))
+        tooth.setAttribute('data-value', '0')
+        tooth.setAttribute('data-jaw', lower ? 'lower' : 'upper')
+        tooth.setAttribute('data-jaw-index', String(index))
+        tooth.setAttribute('data-center-x', String(x))
+        tooth.setAttribute('data-center-y', String(y))
+        tooth.setAttribute('data-angle', String(angle))
+        tooth.setAttribute('transform', `translate(${x} ${y}) rotate(${angle})`)
+        tooth.innerHTML = `
+          <rect class="tooth-hit" x="-44" y="-44" width="88" height="88" rx="20"></rect>
+          <g transform="scale(${scale})${direction}">
+            <path class="tooth-shape" d="${silhouettes[type]}"></path>
+            <path class="tooth-detail" d="M-8 5Q0 10 8 5M0-27V19"></path>
+            <circle class="option-three-dot" data-option-three-dot cx="0" cy="0" r="7" visibility="hidden"></circle>
+          </g>
+        `
+        tooth.addEventListener('click', (event) => {
+          const coordinateLess = event.detail === 0 && event.clientX === 0 && event.clientY === 0
+          const nearest = coordinateLess ? null : nearestToothAt(event.clientX, event.clientY)
+          cycleToothValue(coordinateLess ? number : Number(nearest?.dataset.tooth ?? number))
+        })
+        tooth.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return
+          event.preventDefault()
+          cycleToothValue(number)
+        })
+        container.appendChild(tooth)
+      })
+    }
+
+    function nearestToothAt(x, y) {
+      return [...document.querySelectorAll('[data-tooth]')].reduce((nearest, tooth) => {
+        const rect = tooth.querySelector('.tooth-shape').getBoundingClientRect()
+        const distance = Math.hypot(x - (rect.left + rect.right) / 2, y - (rect.top + rect.bottom) / 2)
+        return !nearest || distance < nearest.distance ? { tooth, distance } : nearest
+      }, null)?.tooth
+    }
+
+    function cycleToothValue(number) {
+      const nextValue = ((toothValues.get(number) ?? 0) + 1) % 4
+      if (nextValue === 0) toothValues.delete(number)
+      else toothValues.set(number, nextValue)
+      updateTooth(number)
+      renderOptionOneLines()
+      announceStatus(`${toothAccessibleLabel(number, nextValue)}.`)
+    }
+
+    function updateAllTeeth() {
+      document.querySelectorAll('[data-tooth]').forEach((tooth) => updateTooth(Number(tooth.dataset.tooth)))
+    }
+
+    function updateTooth(number) {
+      const tooth = document.querySelector(`[data-tooth="${number}"]`)
+      const value = toothValues.get(number) ?? 0
+      tooth.setAttribute('data-value', String(value))
+      tooth.setAttribute('aria-label', toothAccessibleLabel(number, value))
+      tooth.setAttribute('aria-pressed', String(value > 0))
+      tooth.querySelector('.tooth-shape').classList.toggle('has-option-two', value >= 2)
+      tooth.querySelector('[data-option-three-dot]').setAttribute('visibility', value >= 3 ? 'visible' : 'hidden')
+    }
+
+    function toothAccessibleLabel(number, value) {
+      if (value === 1) return `Zub ${number}, možnost 1`
+      if (value === 2) return `Zub ${number}, možnosti 1 a 2`
+      if (value === 3) return `Zub ${number}, možnosti 1, 2 a 3`
+      return `Zub ${number}, bez výběru`
+    }
+
+    function boxesOverlap(a, b) {
+      return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+        Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1
+    }
+
+    function renderScreenNumbers() {
+      const layer = document.querySelector('.screen-number-layer')
+      const wrap = document.querySelector('.arch-wrap')
+      const wrapRect = wrap.getBoundingClientRect()
+      const shapes = [...document.querySelectorAll('[data-tooth]')].map((tooth) => ({
+        tooth,
+        rect: tooth.querySelector('.tooth-shape').getBoundingClientRect(),
+      }))
+      const placed = []
+      layer.replaceChildren()
+
+      shapes.forEach(({ tooth, rect }) => {
+        const number = Number(tooth.dataset.tooth)
+        const label = document.createElement('span')
+        label.className = 'screen-tooth-number'
+        label.dataset.toothNumber = String(number)
+        label.textContent = String(number)
+        layer.appendChild(label)
+
+        const labelRect = label.getBoundingClientRect()
+        const toothCenter = { x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2 }
+        const matrix = tooth.getScreenCTM()
+        const origin = new DOMPoint(0, 0).matrixTransform(matrix)
+        const normalPoint = new DOMPoint(0, tooth.dataset.jaw === 'lower' ? 1 : -1).matrixTransform(matrix)
+        const normalLength = Math.hypot(normalPoint.x - origin.x, normalPoint.y - origin.y)
+        const outward = {
+          x: (normalPoint.x - origin.x) / normalLength,
+          y: (normalPoint.y - origin.y) / normalLength,
+        }
+        const tangent = { x: -outward.y, y: outward.x }
+        const shapeSupport = Math.abs(outward.x) * rect.width / 2 + Math.abs(outward.y) * rect.height / 2
+        const labelSupport = Math.abs(outward.x) * labelRect.width / 2 + Math.abs(outward.y) * labelRect.height / 2
+        const tangentOffsets = [0, -4, 4, -8, 8, -12, 12, -16, 16]
+        const radialGaps = chartLayout().mobile ? [4, 8, 12] : [3, 7, 11]
+        let selected
+
+        for (const radialGap of radialGaps) {
+          if (selected) break
+          for (const tangentOffset of tangentOffsets) {
+            const distance = shapeSupport + labelSupport + radialGap
+            const rawCenter = {
+              x: toothCenter.x + outward.x * distance + tangent.x * tangentOffset,
+              y: toothCenter.y + outward.y * distance + tangent.y * tangentOffset,
+            }
+            const center = {
+              x: Math.min(
+                wrapRect.right - labelRect.width / 2 - 2,
+                Math.max(wrapRect.left + labelRect.width / 2 + 2, rawCenter.x),
+              ),
+              y: Math.min(
+                wrapRect.bottom - labelRect.height / 2 - 2,
+                Math.max(wrapRect.top + labelRect.height / 2 + 2, rawCenter.y),
+              ),
+            }
+            const candidate = {
+              left: center.x - labelRect.width / 2,
+              right: center.x + labelRect.width / 2,
+              top: center.y - labelRect.height / 2,
+              bottom: center.y + labelRect.height / 2,
+              center,
+            }
+            const inside = candidate.left >= wrapRect.left + 2 && candidate.right <= wrapRect.right - 2 &&
+              candidate.top >= wrapRect.top + 2 && candidate.bottom <= wrapRect.bottom - 2
+            const awayFromTeeth = shapes.every(({ rect: shapeRect }) => !boxesOverlap(candidate, shapeRect))
+            const awayFromNumbers = placed.every((placedRect) => !boxesOverlap(candidate, placedRect))
+            if (inside && awayFromTeeth && awayFromNumbers) {
+              selected = candidate
+              break
+            }
+          }
+        }
+
+        if (!selected) {
+          label.hidden = true
+          label.dataset.placement = 'unavailable'
+          return
+        }
+
+        label.style.left = `${selected.center.x - wrapRect.left}px`
+        label.style.top = `${selected.center.y - wrapRect.top}px`
+        const toothEdge = {
+          x: toothCenter.x + outward.x * shapeSupport,
+          y: toothCenter.y + outward.y * shapeSupport,
+        }
+        const toLabel = {
+          x: selected.center.x - toothEdge.x,
+          y: selected.center.y - toothEdge.y,
+        }
+        const toLabelLength = Math.hypot(toLabel.x, toLabel.y)
+        const lineDirection = { x: toLabel.x / toLabelLength, y: toLabel.y / toLabelLength }
+        const lineLabelSupport = Math.abs(lineDirection.x) * labelRect.width / 2 +
+          Math.abs(lineDirection.y) * labelRect.height / 2
+        const lineStart = {
+          x: toothEdge.x - lineDirection.x * 2,
+          y: toothEdge.y - lineDirection.y * 2,
+        }
+        const lineLength = Math.max(4, toLabelLength - lineLabelSupport + 4)
+        const connector = document.createElement('span')
+        connector.className = 'screen-number-connector'
+        connector.dataset.numberConnector = String(number)
+        connector.dataset.length = lineLength.toFixed(2)
+        connector.style.left = `${lineStart.x - wrapRect.left}px`
+        connector.style.top = `${lineStart.y - wrapRect.top}px`
+        connector.style.width = `${lineLength}px`
+        connector.style.transform = `rotate(${Math.atan2(lineDirection.y, lineDirection.x)}rad)`
+        layer.insertBefore(connector, label)
+        placed.push(selected)
+      })
+    }
+
+    function announceStatus(message) {
+      document.querySelector('.status-toast').textContent = message
+    }
+
+    function selectedRuns(teeth) {
+      const runs = []
+      let current = []
+      teeth.forEach((number) => {
+        if ((toothValues.get(number) ?? 0) > 0) {
+          current.push(number)
+          return
+        }
+        if (current.length > 0) runs.push(current)
+        current = []
+      })
+      if (current.length > 0) runs.push(current)
+      return runs
+    }
+
+    function optionOnePoint(number) {
+      const tooth = document.querySelector(`[data-tooth="${number}"]`)
+      const x = Number(tooth.dataset.centerX)
+      const y = Number(tooth.dataset.centerY)
+      const dx = 360 - x
+      const dy = chartLayout().centerY - y
+      const length = Math.hypot(dx, dy)
+      const inset = 43
+      return { x: x + dx / length * inset, y: y + dy / length * inset }
+    }
+
+    function optionOneEndpoint(number, direction) {
+      const tooth = document.querySelector(`[data-tooth="${number}"]`)
+      const point = optionOnePoint(number)
+      const angle = Number(tooth.dataset.angle) * Math.PI / 180
+      const extension = 18 * direction
+      return { x: point.x + Math.cos(angle) * extension, y: point.y + Math.sin(angle) * extension }
+    }
+
+    function renderOptionOneLines() {
+      const layer = document.getElementById('option-one-lines')
+      layer.replaceChildren()
+      for (const jaw of [upperTeeth, lowerTeeth]) {
+        selectedRuns(jaw).forEach((run) => {
+          const points = run.length === 1
+            ? [optionOneEndpoint(run[0], -1), optionOneEndpoint(run[0], 1)]
+            : [optionOneEndpoint(run[0], -1), ...run.map(optionOnePoint), optionOneEndpoint(run.at(-1), 1)]
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+          path.setAttribute('class', 'option-one-line')
+          path.setAttribute('data-option-one-run', '')
+          path.setAttribute('data-teeth', run.join(','))
+          path.setAttribute('data-run-size', String(run.length))
+          path.setAttribute('d', points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' '))
+          layer.appendChild(path)
+        })
+      }
+    }
+
+    function rebuildChart() {
+      const focusedTooth = document.activeElement?.getAttribute('data-tooth')
+      configureChart()
+      document.getElementById('upper-teeth').replaceChildren()
+      document.getElementById('lower-teeth').replaceChildren()
+      renderJaw('upper-teeth', upperTeeth, false)
+      renderJaw('lower-teeth', lowerTeeth, true)
+      updateAllTeeth()
+      renderOptionOneLines()
+      renderScreenNumbers()
+      if (focusedTooth) document.querySelector(`[data-tooth="${focusedTooth}"]`)?.focus()
+    }
+
+    let renderedMobileLayout = chartLayout().mobile
+    rebuildChart()
+    window.addEventListener('resize', () => {
+      const nextMobileLayout = chartLayout().mobile
+      if (nextMobileLayout !== renderedMobileLayout) {
+        renderedMobileLayout = nextMobileLayout
+        rebuildChart()
+        return
+      }
+      renderScreenNumbers()
+    })
+  </script>
+</body>
+</html>
