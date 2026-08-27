@@ -93,6 +93,30 @@
       justify-content: center;
     }
 
+    .accessory-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      color: #d7d8de;
+      font-size: 12px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      min-height: 30px;
+      gap: 5px;
+      align-items: center;
+      border: 1px solid #474852;
+      border-radius: 9px;
+      padding: 4px 8px;
+      background: #202127;
+      white-space: nowrap;
+    }
+
+    .legend-item strong { color: var(--rose); font-size: 14px; }
+
     .drawing-toolbar[hidden] { display: none; }
 
     .authoring-controls button {
@@ -171,18 +195,51 @@
       stroke-width: 5;
       filter: drop-shadow(0 0 5px rgba(251, 71, 117, .5));
     }
-    .accessory-letter {
-      fill: var(--rose);
-      stroke: rgba(255, 255, 255, .82);
-      stroke-width: .7;
-      paint-order: stroke fill;
-      font: 800 18px/1 system-ui, sans-serif;
-      text-anchor: middle;
-      dominant-baseline: central;
+    .accessory-marker,
+    .accessory-marker * {
       pointer-events: none;
       user-select: none;
+      -webkit-user-select: none;
+    }
+    .accessory-marker { isolation: isolate; }
+    .accessory-label-box {
+      fill: #15161a;
+      stroke: #ff8ba9;
+      stroke-width: 1.5;
+      vector-effect: non-scaling-stroke;
+      opacity: 0;
+      transform: scaleX(.32);
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: opacity .18s ease, transform .18s ease;
+      filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .55));
+    }
+    .accessory-letter,
+    .accessory-name {
+      text-anchor: middle;
+      dominant-baseline: central;
+      transition: opacity .18s ease;
+    }
+    .accessory-letter {
+      fill: var(--rose);
+      stroke: rgba(255, 255, 255, .86);
+      stroke-width: .7;
+      paint-order: stroke fill;
+      font: 900 18px/1 system-ui, sans-serif;
+      opacity: 1;
       filter: drop-shadow(0 0 3px rgba(251, 71, 117, .45));
     }
+    .accessory-name {
+      fill: #fff;
+      font: 800 13px/1 system-ui, sans-serif;
+      opacity: 0;
+    }
+    .accessory-marker[data-expanded="true"] .accessory-label-box {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+    .accessory-marker[data-expanded="true"] .accessory-letter { opacity: 0; }
+    .accessory-marker[data-expanded="true"] .accessory-name { opacity: 1; }
     .option-one-line {
       fill: none;
       stroke: var(--rose);
@@ -254,6 +311,8 @@
       .chart-card { border-radius: 15px; }
       .authoring-controls { gap: 6px; padding: 8px 8px 2px; }
       .authoring-controls button { padding-inline: 9px; font-size: 12px; }
+      .accessory-legend { width: 100%; font-size: 11px; }
+      .legend-item { min-height: 28px; padding: 3px 7px; }
       .arch-wrap { padding: 0 2px; }
       .arch-chart { max-height: min(50dvh, 450px); }
       .jaw-label { font-size: 11px; }
@@ -273,15 +332,19 @@
     <header class="page-head">
       <p class="eyebrow">Interaktivní prototyp</p>
       <h1>Zubní kříž – ortodoncie</h1>
-      <p class="lede">Standardní prvky naklikáte přímo na zuby. Pro individuální požadavky můžete přepnout na volné kreslení.</p>
+      <p class="lede">Standardní prvky vyberte přímo na zubech. Nestandardní prvky a individuální požadavky doplňte zakreslením.</p>
     </header>
 
     <section class="workspace" aria-label="Prototyp plánu umístění">
       <article class="chart-card">
         <div class="authoring-controls">
           <div class="mode-switch" aria-label="Způsob zadání">
-            <button type="button" data-mode="click" aria-pressed="true">Klikání</button>
-            <button type="button" data-mode="draw" aria-pressed="false">Volné kreslení</button>
+            <button type="button" data-mode="click" aria-pressed="true">Výběr zubů</button>
+            <button type="button" data-mode="draw" aria-pressed="false">Individuální zakreslení</button>
+          </div>
+          <div class="accessory-legend" role="group" aria-label="Legenda značek">
+            <span class="legend-item"><strong>Z</strong><span aria-hidden="true">—</span> Zámek</span>
+            <span class="legend-item"><strong>K</strong><span aria-hidden="true">—</span> Kanyla</span>
           </div>
           <div class="drawing-toolbar" data-drawing-toolbar hidden aria-label="Nástroje kreslení">
             <button type="button" data-draw-tool="pen" aria-pressed="true">Pero</button>
@@ -323,6 +386,9 @@
     let drawingHistoryIndex = 0
     let activeDrawingOperation = null
     let nextStrokeId = 1
+    const accessoryRevealUntil = new Map()
+    const accessoryRevealTimers = new Map()
+    const accessoryRevealDuration = 1500
 
     const silhouettes = {
       molar: 'M-16-29C-26-27-24-14-31-6C-36 2-34 18-24 25C-15 31-8 28 0 25C8 28 15 31 24 25C34 18 36 2 31-6C24-14 26-27 16-29C8-35-8-35-16-29Z',
@@ -421,7 +487,7 @@
       cancelActiveDrawing()
       authoringMode = mode
       updateDrawingControls()
-      announceStatus(mode === 'draw' ? 'Zapnuto volné kreslení.' : 'Zapnuto klikání na zuby.')
+      announceStatus(mode === 'draw' ? 'Aktivní režim: Individuální zakreslení.' : 'Aktivní režim: Výběr zubů.')
     }
 
     function setDrawingTool(tool) {
@@ -461,9 +527,9 @@
 
     function clearDrawing() {
       if (currentStrokes().length === 0) return
-      if (!window.confirm('Vymazat celou kresbu? Kliknuté značky na zubech zůstanou zachovány.')) return
+      if (!window.confirm('Vymazat celé individuální zakreslení? Vybrané značky na zubech zůstanou zachovány.')) return
       commitDrawing([])
-      announceStatus('Volná kresba vymazána. Kliknuté značky zůstaly zachovány.')
+      announceStatus('Individuální zakreslení bylo vymazáno. Výběr zubů zůstal zachován.')
     }
 
     function syncDrawingCaptureBounds() {
@@ -640,7 +706,11 @@
             <path class="tooth-shape" d="${silhouettes[type]}"></path>
             <path class="tooth-detail" d="M-8 5Q0 10 8 5M0-27V19"></path>
           </g>
-          <text class="accessory-letter" data-accessory-letter x="0" y="1" transform="rotate(${-angle})" visibility="hidden"></text>
+          <g class="accessory-marker" data-accessory-marker data-expanded="false" transform="rotate(${-angle})" visibility="hidden" aria-hidden="true">
+            <rect class="accessory-label-box" data-accessory-box x="-39" y="-14" width="78" height="28" rx="8"></rect>
+            <text class="accessory-letter" data-accessory-letter x="0" y="1"></text>
+            <text class="accessory-name" data-accessory-name x="0" y="1"></text>
+          </g>
         `
         tooth.addEventListener('click', (event) => {
           if (authoringMode !== 'click') return
@@ -654,6 +724,10 @@
           event.preventDefault()
           cycleToothValue(number)
         })
+        tooth.addEventListener('pointerenter', () => setAccessoryHold(tooth, 'accessoryHover', true))
+        tooth.addEventListener('pointerleave', () => setAccessoryHold(tooth, 'accessoryHover', false))
+        tooth.addEventListener('focus', () => setAccessoryHold(tooth, 'accessoryFocus', true))
+        tooth.addEventListener('blur', () => setAccessoryHold(tooth, 'accessoryFocus', false))
         container.appendChild(tooth)
       })
     }
@@ -670,6 +744,8 @@
       const nextValue = ((toothValues.get(number) ?? 0) + 1) % 4
       if (nextValue === 0) toothValues.delete(number)
       else toothValues.set(number, nextValue)
+      if (nextValue === 3) startAccessoryReveal(number)
+      else clearAccessoryReveal(number)
       updateTooth(number)
       renderOptionOneLines()
       announceStatus(`${toothAccessibleLabel(number, nextValue)}.`)
@@ -686,9 +762,7 @@
       tooth.setAttribute('aria-label', toothAccessibleLabel(number, value))
       tooth.setAttribute('aria-pressed', String(value > 0))
       tooth.querySelector('.tooth-shape').classList.toggle('has-option-two', value >= 2)
-      const letter = tooth.querySelector('[data-accessory-letter]')
-      letter.textContent = accessoryForTooth(number)
-      letter.setAttribute('visibility', value >= 3 ? 'visible' : 'hidden')
+      syncAccessoryMarker(number)
     }
 
     function accessoryForTooth(number) {
@@ -697,6 +771,72 @@
 
     function accessoryNameForTooth(number) {
       return accessoryForTooth(number) === 'Z' ? 'zámek' : 'kanyla'
+    }
+
+    function accessoryDisplayNameForTooth(number) {
+      return accessoryForTooth(number) === 'Z' ? 'Zámek' : 'Kanyla'
+    }
+
+    function clearAccessoryReveal(number) {
+      const timer = accessoryRevealTimers.get(number)
+      if (timer) clearTimeout(timer)
+      accessoryRevealTimers.delete(number)
+      accessoryRevealUntil.delete(number)
+      const tooth = document.querySelector(`[data-tooth="${number}"]`)
+      if (tooth) {
+        delete tooth.dataset.accessoryHover
+        delete tooth.dataset.accessoryFocus
+      }
+    }
+
+    function startAccessoryReveal(number) {
+      clearAccessoryReveal(number)
+      accessoryRevealUntil.set(number, performance.now() + accessoryRevealDuration)
+      scheduleAccessoryRetraction(number)
+    }
+
+    function scheduleAccessoryRetraction(number) {
+      const currentTimer = accessoryRevealTimers.get(number)
+      if (currentTimer) clearTimeout(currentTimer)
+      const remaining = (accessoryRevealUntil.get(number) ?? 0) - performance.now()
+      if (remaining <= 0) {
+        accessoryRevealTimers.delete(number)
+        accessoryRevealUntil.delete(number)
+        syncAccessoryMarker(number)
+        return
+      }
+      const timer = setTimeout(() => {
+        accessoryRevealTimers.delete(number)
+        if ((accessoryRevealUntil.get(number) ?? 0) > performance.now()) {
+          scheduleAccessoryRetraction(number)
+          return
+        }
+        accessoryRevealUntil.delete(number)
+        syncAccessoryMarker(number)
+      }, remaining + 10)
+      accessoryRevealTimers.set(number, timer)
+    }
+
+    function setAccessoryHold(tooth, key, active) {
+      const number = Number(tooth.dataset.tooth)
+      if ((toothValues.get(number) ?? 0) < 3) return
+      if (active && (accessoryRevealUntil.get(number) ?? 0) <= performance.now()) tooth.dataset[key] = 'true'
+      if (!active) delete tooth.dataset[key]
+      syncAccessoryMarker(number)
+    }
+
+    function syncAccessoryMarker(number) {
+      const tooth = document.querySelector(`[data-tooth="${number}"]`)
+      if (!tooth) return
+      const marker = tooth.querySelector('[data-accessory-marker]')
+      const visible = (toothValues.get(number) ?? 0) >= 3
+      marker.setAttribute('visibility', visible ? 'visible' : 'hidden')
+      marker.querySelector('[data-accessory-letter]').textContent = accessoryForTooth(number)
+      marker.querySelector('[data-accessory-name]').textContent = accessoryDisplayNameForTooth(number)
+      const timedReveal = (accessoryRevealUntil.get(number) ?? 0) > performance.now()
+      const held = tooth.dataset.accessoryHover === 'true' || tooth.dataset.accessoryFocus === 'true'
+      marker.setAttribute('data-expanded', String(visible && (timedReveal || held)))
+      if (visible && timedReveal) scheduleAccessoryRetraction(number)
     }
 
     function toothAccessibleLabel(number, value) {
