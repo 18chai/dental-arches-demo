@@ -38,6 +38,11 @@
 
     button { font: inherit; }
 
+    button:focus-visible {
+      outline: 3px solid #a9a2ff;
+      outline-offset: 2px;
+    }
+
     .app-shell {
       width: min(100%, 1440px);
       min-height: 100dvh;
@@ -67,6 +72,43 @@
     }
 
     .chart-card { position: relative; display: flex; flex-direction: column; overflow: hidden; }
+
+    .authoring-controls {
+      position: relative;
+      z-index: 7;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 14px 4px;
+    }
+
+    .mode-switch,
+    .drawing-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .drawing-toolbar[hidden] { display: none; }
+
+    .authoring-controls button {
+      min-width: 44px;
+      min-height: 44px;
+      border: 1px solid #474852;
+      border-radius: 10px;
+      padding: 8px 12px;
+      background: #282930;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .authoring-controls button:hover:not(:disabled) { border-color: #696b78; background: #303139; }
+    .authoring-controls button[aria-pressed="true"] { border-color: #8b83ff; background: var(--violet-soft); color: #dedbff; }
+    .authoring-controls button:disabled { cursor: not-allowed; opacity: .42; }
 
     .arch-wrap {
       position: relative;
@@ -129,13 +171,17 @@
       stroke-width: 5;
       filter: drop-shadow(0 0 5px rgba(251, 71, 117, .5));
     }
-    .option-three-dot {
+    .accessory-letter {
       fill: var(--rose);
-      stroke: white;
-      stroke-width: 1.5;
-      vector-effect: non-scaling-stroke;
+      stroke: rgba(255, 255, 255, .82);
+      stroke-width: .7;
+      paint-order: stroke fill;
+      font: 800 18px/1 system-ui, sans-serif;
+      text-anchor: middle;
+      dominant-baseline: central;
       pointer-events: none;
-      filter: drop-shadow(0 0 3px rgba(251, 71, 117, .6));
+      user-select: none;
+      filter: drop-shadow(0 0 3px rgba(251, 71, 117, .45));
     }
     .option-one-line {
       fill: none;
@@ -146,6 +192,20 @@
       vector-effect: non-scaling-stroke;
       filter: drop-shadow(0 0 5px rgba(251, 71, 117, .5));
     }
+
+    .freehand-stroke,
+    .freehand-preview {
+      fill: none;
+      stroke: #38d8c1;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+      pointer-events: none;
+      filter: drop-shadow(0 0 3px rgba(32, 201, 180, .45));
+    }
+    .freehand-preview { opacity: .72; }
+    [data-drawing-capture] { touch-action: none; cursor: crosshair; }
 
     .screen-number-layer { position: absolute; inset: 0; pointer-events: none; }
     .screen-number-layer { z-index: 3; }
@@ -192,9 +252,19 @@
       .lede { margin-top: 5px; font-size: 11px; line-height: 1.35; }
       .workspace { flex: 1; grid-template-columns: 1fr; }
       .chart-card { border-radius: 15px; }
+      .authoring-controls { gap: 6px; padding: 8px 8px 2px; }
+      .authoring-controls button { padding-inline: 9px; font-size: 12px; }
       .arch-wrap { padding: 0 2px; }
-      .arch-chart { max-height: min(54dvh, 480px); }
+      .arch-chart { max-height: min(50dvh, 450px); }
       .jaw-label { font-size: 11px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+      }
     }
   </style>
 </head>
@@ -203,11 +273,24 @@
     <header class="page-head">
       <p class="eyebrow">Interaktivní prototyp</p>
       <h1>Zubní kříž – ortodoncie</h1>
-      <p class="lede">Kliknutím nebo klepnutím na zub postupně přidáte čáru, obrys a bod. Čtvrté kliknutí výběr zruší.</p>
+      <p class="lede">Standardní prvky naklikáte přímo na zuby. Pro individuální požadavky můžete přepnout na volné kreslení.</p>
     </header>
 
     <section class="workspace" aria-label="Prototyp plánu umístění">
       <article class="chart-card">
+        <div class="authoring-controls">
+          <div class="mode-switch" aria-label="Způsob zadání">
+            <button type="button" data-mode="click" aria-pressed="true">Klikání</button>
+            <button type="button" data-mode="draw" aria-pressed="false">Volné kreslení</button>
+          </div>
+          <div class="drawing-toolbar" data-drawing-toolbar hidden aria-label="Nástroje kreslení">
+            <button type="button" data-draw-tool="pen" aria-pressed="true">Pero</button>
+            <button type="button" data-draw-tool="eraser" aria-pressed="false">Guma</button>
+            <button type="button" data-drawing-action="undo" disabled>Zpět</button>
+            <button type="button" data-drawing-action="redo" disabled>Znovu</button>
+            <button type="button" data-drawing-action="clear" disabled>Vymazat kresbu</button>
+          </div>
+        </div>
         <div class="arch-wrap" data-arch-chart>
           <svg class="arch-chart" viewBox="0 0 720 800" role="group" aria-label="Zubní oblouky">
             <path id="upper-bed" class="jaw-bed" d="M50 350 C50 8 670 8 670 350 C615 265 105 265 50 350Z" />
@@ -220,6 +303,8 @@
             <g id="option-one-lines" aria-hidden="true"></g>
             <g id="upper-teeth" aria-label="Horní čelist"></g>
             <g id="lower-teeth" aria-label="Dolní čelist"></g>
+            <g id="freehand-strokes" aria-hidden="true"></g>
+            <rect data-drawing-capture x="0" y="0" width="720" height="800" fill="transparent" pointer-events="none"></rect>
           </svg>
           <div class="screen-number-layer" aria-hidden="true"></div>
         </div>
@@ -232,6 +317,12 @@
     const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
     const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
     const toothValues = new Map()
+    let authoringMode = 'click'
+    let drawingTool = 'pen'
+    let drawingHistory = [[]]
+    let drawingHistoryIndex = 0
+    let activeDrawingOperation = null
+    let nextStrokeId = 1
 
     const silhouettes = {
       molar: 'M-16-29C-26-27-24-14-31-6C-36 2-34 18-24 25C-15 31-8 28 0 25C8 28 15 31 24 25C34 18 36 2 31-6C24-14 26-27 16-29C8-35-8-35-16-29Z',
@@ -259,6 +350,233 @@
       }
     }
 
+    function currentViewBoxHeight() {
+      return Number(document.querySelector('.arch-chart').getAttribute('viewBox').split(/\s+/).at(-1))
+    }
+
+    function cloneStrokes(strokes) {
+      return strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ ...point })) }))
+    }
+
+    function currentStrokes() {
+      return drawingHistory[drawingHistoryIndex]
+    }
+
+    function strokePathData(stroke) {
+      const height = currentViewBoxHeight()
+      return stroke.points.map((point, index) =>
+        `${index === 0 ? 'M' : 'L'}${(point.x * 720).toFixed(2)} ${(point.y * height).toFixed(2)}`,
+      ).join(' ')
+    }
+
+    function displayedStrokes() {
+      return activeDrawingOperation?.tool === 'eraser' ? activeDrawingOperation.strokes : currentStrokes()
+    }
+
+    function renderDrawing() {
+      const layer = document.getElementById('freehand-strokes')
+      layer.replaceChildren()
+      displayedStrokes().forEach((stroke) => {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        path.setAttribute('class', 'freehand-stroke')
+        path.setAttribute('data-drawing-stroke', String(stroke.id))
+        path.setAttribute('d', strokePathData(stroke))
+        layer.appendChild(path)
+      })
+      if (activeDrawingOperation?.tool === 'pen' && activeDrawingOperation.stroke.points.length > 1) {
+        const preview = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        preview.setAttribute('class', 'freehand-preview')
+        preview.setAttribute('data-drawing-preview', '')
+        preview.setAttribute('d', strokePathData(activeDrawingOperation.stroke))
+        layer.appendChild(preview)
+      }
+    }
+
+    function updateDrawingControls() {
+      document.querySelectorAll('[data-mode]').forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.mode === authoringMode))
+      })
+      document.querySelector('[data-drawing-toolbar]').hidden = authoringMode !== 'draw'
+      document.querySelectorAll('[data-draw-tool]').forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.drawTool === drawingTool))
+      })
+      document.querySelector('[data-drawing-action="undo"]').disabled = drawingHistoryIndex === 0
+      document.querySelector('[data-drawing-action="redo"]').disabled = drawingHistoryIndex === drawingHistory.length - 1
+      document.querySelector('[data-drawing-action="clear"]').disabled = currentStrokes().length === 0
+      const capture = document.querySelector('[data-drawing-capture]')
+      capture.setAttribute('pointer-events', authoringMode === 'draw' ? 'all' : 'none')
+      document.querySelectorAll('[data-tooth]').forEach((tooth) => {
+        tooth.setAttribute('tabindex', authoringMode === 'click' ? '0' : '-1')
+        tooth.setAttribute('aria-disabled', String(authoringMode !== 'click'))
+      })
+    }
+
+    function cancelActiveDrawing() {
+      activeDrawingOperation = null
+      renderDrawing()
+    }
+
+    function setAuthoringMode(mode) {
+      if (mode !== 'click' && mode !== 'draw') return
+      cancelActiveDrawing()
+      authoringMode = mode
+      updateDrawingControls()
+      announceStatus(mode === 'draw' ? 'Zapnuto volné kreslení.' : 'Zapnuto klikání na zuby.')
+    }
+
+    function setDrawingTool(tool) {
+      if (tool !== 'pen' && tool !== 'eraser') return
+      cancelActiveDrawing()
+      drawingTool = tool
+      updateDrawingControls()
+      announceStatus(tool === 'pen' ? 'Nástroj Pero.' : 'Nástroj Guma.')
+    }
+
+    function commitDrawing(nextStrokes) {
+      drawingHistory = drawingHistory.slice(0, drawingHistoryIndex + 1)
+      drawingHistory.push(cloneStrokes(nextStrokes))
+      drawingHistoryIndex += 1
+      activeDrawingOperation = null
+      renderDrawing()
+      updateDrawingControls()
+    }
+
+    function undoDrawing() {
+      if (drawingHistoryIndex === 0) return
+      cancelActiveDrawing()
+      drawingHistoryIndex -= 1
+      renderDrawing()
+      updateDrawingControls()
+      announceStatus('Poslední změna kresby vrácena zpět.')
+    }
+
+    function redoDrawing() {
+      if (drawingHistoryIndex >= drawingHistory.length - 1) return
+      cancelActiveDrawing()
+      drawingHistoryIndex += 1
+      renderDrawing()
+      updateDrawingControls()
+      announceStatus('Změna kresby obnovena.')
+    }
+
+    function clearDrawing() {
+      if (currentStrokes().length === 0) return
+      if (!window.confirm('Vymazat celou kresbu? Kliknuté značky na zubech zůstanou zachovány.')) return
+      commitDrawing([])
+      announceStatus('Volná kresba vymazána. Kliknuté značky zůstaly zachovány.')
+    }
+
+    function syncDrawingCaptureBounds() {
+      document.querySelector('[data-drawing-capture]').setAttribute('height', String(currentViewBoxHeight()))
+    }
+
+    function drawingPoint(event) {
+      const chart = document.querySelector('.arch-chart')
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(chart.getScreenCTM().inverse())
+      return {
+        x: Math.max(0, Math.min(1, point.x / 720)),
+        y: Math.max(0, Math.min(1, point.y / currentViewBoxHeight())),
+      }
+    }
+
+    function svgDistance(a, b) {
+      return Math.hypot((a.x - b.x) * 720, (a.y - b.y) * currentViewBoxHeight())
+    }
+
+    function strokeHitsPoint(stroke, point) {
+      return stroke.points.some((candidate) => svgDistance(candidate, point) <= 12)
+    }
+
+    function appendPenPoint(event) {
+      const point = drawingPoint(event)
+      const points = activeDrawingOperation.stroke.points
+      if (svgDistance(points.at(-1), point) < 1.5) return
+      points.push(point)
+      renderDrawing()
+    }
+
+    function eraseAt(event) {
+      const point = drawingPoint(event)
+      const removedBefore = activeDrawingOperation.removedIds.size
+      activeDrawingOperation.strokes.forEach((stroke) => {
+        if (strokeHitsPoint(stroke, point)) activeDrawingOperation.removedIds.add(stroke.id)
+      })
+      if (activeDrawingOperation.removedIds.size === removedBefore) return
+      activeDrawingOperation.strokes = activeDrawingOperation.baseStrokes.filter(
+        (stroke) => !activeDrawingOperation.removedIds.has(stroke.id),
+      )
+      renderDrawing()
+    }
+
+    function beginDrawing(event) {
+      if (authoringMode !== 'draw' || !event.isPrimary || event.button !== 0 || activeDrawingOperation) return
+      event.preventDefault()
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+      } catch {
+        // Synthetic/assistive pointer events may not have a browser-managed active pointer.
+      }
+      if (drawingTool === 'pen') {
+        activeDrawingOperation = {
+          tool: 'pen',
+          pointerId: event.pointerId,
+          stroke: { id: nextStrokeId, points: [drawingPoint(event)] },
+        }
+        return
+      }
+      activeDrawingOperation = {
+        tool: 'eraser',
+        pointerId: event.pointerId,
+        baseStrokes: cloneStrokes(currentStrokes()),
+        strokes: cloneStrokes(currentStrokes()),
+        removedIds: new Set(),
+      }
+      eraseAt(event)
+    }
+
+    function continueDrawing(event) {
+      if (!activeDrawingOperation || event.pointerId !== activeDrawingOperation.pointerId) return
+      event.preventDefault()
+      if (activeDrawingOperation.tool === 'pen') appendPenPoint(event)
+      else eraseAt(event)
+    }
+
+    function finishDrawing(event) {
+      if (!activeDrawingOperation || event.pointerId !== activeDrawingOperation.pointerId) return
+      event.preventDefault()
+      if (activeDrawingOperation.tool === 'pen') {
+        appendPenPoint(event)
+        const stroke = activeDrawingOperation.stroke
+        nextStrokeId += 1
+        if (stroke.points.length >= 2) {
+          commitDrawing([...currentStrokes(), stroke])
+          announceStatus('Tah kresby přidán.')
+        } else {
+          cancelActiveDrawing()
+        }
+      } else {
+        eraseAt(event)
+        const operation = activeDrawingOperation
+        if (operation.removedIds.size > 0) {
+          commitDrawing(operation.strokes)
+          announceStatus(operation.removedIds.size === 1 ? 'Tah kresby vymazán.' : `Vymazány tahy: ${operation.removedIds.size}.`)
+        } else {
+          cancelActiveDrawing()
+        }
+      }
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId)
+      } catch {
+        // The pointer may already have been released by the browser.
+      }
+    }
+
+    function cancelDrawing(event) {
+      if (!activeDrawingOperation || event.pointerId !== activeDrawingOperation.pointerId) return
+      cancelActiveDrawing()
+      announceStatus('Nedokončený tah zrušen.')
+    }
+
     function configureChart() {
       const { mobile, height } = chartLayout()
       const chart = document.querySelector('.arch-chart')
@@ -277,6 +595,7 @@
         : 'M58 462 C58 782 662 782 662 462')
       document.getElementById('arch-midline').setAttribute('y2', mobile ? '886' : '774')
       document.getElementById('lower-label').setAttribute('y', mobile ? '894' : '782')
+      syncDrawingCaptureBounds()
     }
 
     function renderJaw(containerId, teeth, lower) {
@@ -320,15 +639,17 @@
           <g transform="scale(${scale})${direction}">
             <path class="tooth-shape" d="${silhouettes[type]}"></path>
             <path class="tooth-detail" d="M-8 5Q0 10 8 5M0-27V19"></path>
-            <circle class="option-three-dot" data-option-three-dot cx="0" cy="0" r="7" visibility="hidden"></circle>
           </g>
+          <text class="accessory-letter" data-accessory-letter x="0" y="1" transform="rotate(${-angle})" visibility="hidden"></text>
         `
         tooth.addEventListener('click', (event) => {
+          if (authoringMode !== 'click') return
           const coordinateLess = event.detail === 0 && event.clientX === 0 && event.clientY === 0
           const nearest = coordinateLess ? null : nearestToothAt(event.clientX, event.clientY)
           cycleToothValue(coordinateLess ? number : Number(nearest?.dataset.tooth ?? number))
         })
         tooth.addEventListener('keydown', (event) => {
+          if (authoringMode !== 'click') return
           if (event.key !== 'Enter' && event.key !== ' ') return
           event.preventDefault()
           cycleToothValue(number)
@@ -365,13 +686,23 @@
       tooth.setAttribute('aria-label', toothAccessibleLabel(number, value))
       tooth.setAttribute('aria-pressed', String(value > 0))
       tooth.querySelector('.tooth-shape').classList.toggle('has-option-two', value >= 2)
-      tooth.querySelector('[data-option-three-dot]').setAttribute('visibility', value >= 3 ? 'visible' : 'hidden')
+      const letter = tooth.querySelector('[data-accessory-letter]')
+      letter.textContent = accessoryForTooth(number)
+      letter.setAttribute('visibility', value >= 3 ? 'visible' : 'hidden')
+    }
+
+    function accessoryForTooth(number) {
+      return number % 10 <= 5 ? 'Z' : 'K'
+    }
+
+    function accessoryNameForTooth(number) {
+      return accessoryForTooth(number) === 'Z' ? 'zámek' : 'kanyla'
     }
 
     function toothAccessibleLabel(number, value) {
-      if (value === 1) return `Zub ${number}, možnost 1`
-      if (value === 2) return `Zub ${number}, možnosti 1 a 2`
-      if (value === 3) return `Zub ${number}, možnosti 1, 2 a 3`
+      if (value === 1) return `Zub ${number}, rameno`
+      if (value === 2) return `Zub ${number}, rameno, kotvení`
+      if (value === 3) return `Zub ${number}, rameno, kotvení, ${accessoryNameForTooth(number)}`
       return `Zub ${number}, bez výběru`
     }
 
@@ -556,9 +887,26 @@
       renderJaw('lower-teeth', lowerTeeth, true)
       updateAllTeeth()
       renderOptionOneLines()
+      renderDrawing()
+      updateDrawingControls()
       renderScreenNumbers()
       if (focusedTooth) document.querySelector(`[data-tooth="${focusedTooth}"]`)?.focus()
     }
+
+    document.querySelectorAll('[data-mode]').forEach((button) => {
+      button.addEventListener('click', () => setAuthoringMode(button.dataset.mode))
+    })
+    document.querySelectorAll('[data-draw-tool]').forEach((button) => {
+      button.addEventListener('click', () => setDrawingTool(button.dataset.drawTool))
+    })
+    document.querySelector('[data-drawing-action="undo"]').addEventListener('click', undoDrawing)
+    document.querySelector('[data-drawing-action="redo"]').addEventListener('click', redoDrawing)
+    document.querySelector('[data-drawing-action="clear"]').addEventListener('click', clearDrawing)
+    const drawingCapture = document.querySelector('[data-drawing-capture]')
+    drawingCapture.addEventListener('pointerdown', beginDrawing)
+    drawingCapture.addEventListener('pointermove', continueDrawing)
+    drawingCapture.addEventListener('pointerup', finishDrawing)
+    drawingCapture.addEventListener('pointercancel', cancelDrawing)
 
     let renderedMobileLayout = chartLayout().mobile
     rebuildChart()
